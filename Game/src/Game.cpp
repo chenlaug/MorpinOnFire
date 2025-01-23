@@ -72,12 +72,17 @@ void Game::handleMenu()
                 networkClient.connectToServer("127.0.0.1", 12345);
                 break;
             case 3: // Jouer en solo (IA)
-                std::cout << "Playing solo mode..." << std::endl;
+                std::cout << "Playing solo with ia mode..." << std::endl;
                 player1 = std::make_unique<HumainPlayer>('X', "Player 1");
                 player2 = std::make_unique<AiPlayer>('O', "AI Player");
                 dynamic_cast<AiPlayer*>(player2.get())->setOpponentSymbol(player1->getSymbol());
                 gameState = GameState::Playing;
                 break;
+			case 4: // Jouer en solo friends
+                std::cout << "Playing solo with friends mode..." << std::endl;
+                player1 = std::make_unique<HumainPlayer>('X', "Player 1");
+                player2 = std::make_unique<HumainPlayer>('O', "AI Player");
+                gameState = GameState::Playing;
             default:
                 break;
             }

@@ -5,7 +5,7 @@
 class Menu {
 private:
     Text& text;
-    sf::RectangleShape button1, button2, button3;
+    sf::RectangleShape button1, button2, button3, button4;
 
 public:
     Menu(Text& text);
