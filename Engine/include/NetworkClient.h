@@ -1,20 +1,21 @@
-#pragma once
+#ifndef NETWORKCLIENT_H
+#define NETWORKCLIENT_H
+
 #include <winsock2.h>
 #include <iostream>
-#include <thread>
-
+#include <functional>
 
 class NetworkClient {
 public:
     NetworkClient();
     ~NetworkClient();
 
-    void connectToServer(const std::string& serverIp, int port);
-    void sendMove(const std::string& move);
-    std::string receiveMove();
+    void connectToServer(const std::string& serverIP, int port);
+    void receiveGameStartNotification(std::function<void()> gameStartCallback);
 
 private:
     SOCKET clientSocket;
     sockaddr_in serverAddr;
-    void receiveLoop();
 };
+
+#endif // NETWORKCLIENT_H

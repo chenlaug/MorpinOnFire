@@ -1,7 +1,9 @@
-#pragma once
+#ifndef NETWORKSERVER_H
+#define NETWORKSERVER_H
+
 #include <winsock2.h>
+#include <string>
 #include <iostream>
-#include <thread>
 
 class NetworkServer {
 public:
@@ -9,13 +11,16 @@ public:
     ~NetworkServer();
 
     void startServer(int port);
-    void sendMove(const std::string& move);
-    std::string receiveMove();
+    void acceptClient(int playerNumber);
+    void notifyGameStart();
+    bool areClientsConnected() const;
 
 private:
-    SOCKET serverSocket, clientSocket;
-    sockaddr_in serverAddr, clientAddr;
-    int clientAddrSize;
-    void handleClient();
-    void acceptClient();
+    SOCKET serverSocket;
+    SOCKET clientSocket1;
+    SOCKET clientSocket2;
+    sockaddr_in serverAddr;
+    bool clientsConnected;
 };
+
+#endif // NETWORKSERVER_H

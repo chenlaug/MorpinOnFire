@@ -1,62 +1,63 @@
 #include "NetworkClient.h"
-#include <ws2tcpip.h>  // Pour inet_pton
+#include <ws2tcpip.h>
 
 NetworkClient::NetworkClient() {
-    WSADATA wsaData;
-    WSAStartup(MAKEWORD(2, 2), &wsaData);  
-    clientSocket = INVALID_SOCKET;
+    WSAData wsaData;
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+        std::cerr << "Erreur WinSock" << std::endl;
+        exit(1);
+    }
+
+    clientSocket = socket(AF_INET, SOCK_STREAM, 0);
+    if (clientSocket == INVALID_SOCKET) {
+        std::cerr << "Erreur de création du socket" << std::endl;
+        exit(1);
+    }
 }
 
 NetworkClient::~NetworkClient() {
-    closesocket(clientSocket);  
-    WSACleanup();  
+    closesocket(clientSocket);
+    WSACleanup();
 }
 
-void NetworkClient::connectToServer(const std::string& serverIp, int port) {
-    clientSocket = socket(AF_INET, SOCK_STREAM, 0);
-    if (clientSocket == INVALID_SOCKET) {
-        std::cerr << "Socket creation failed!" << std::endl;
-        return;
-    }
-
+void NetworkClient::connectToServer(const std::string& serverIP, int port) {
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(port);
+    inet_pton(AF_INET, serverIP.c_str(), &serverAddr.sin_addr);
 
-    if (inet_pton(AF_INET, serverIp.c_str(), &serverAddr.sin_addr) <= 0) {
-        std::cerr << "Invalid address/Address not supported!" << std::endl;
+    if (connect(clientSocket, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) {
+        int errorCode = WSAGetLastError();
+        std::cerr << "Erreur de connexion au serveur. Code d'erreur : " << errorCode << std::endl;
         return;
     }
 
-    // Connexion au serveur
-    if (connect(clientSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) {
-        std::cerr << "Connection failed!" << std::endl;
-        return;
-    }
-
-    std::cout << "Connected to server!" << std::endl;
-
-    std::thread receiveThread(&NetworkClient::receiveLoop, this);
-    receiveThread.detach();
+    std::cout << "Connecté au serveur !" << std::endl;
 }
 
-void NetworkClient::sendMove(const std::string& move) {
-    send(clientSocket, move.c_str(), move.size(), 0);
-}
 
-std::string NetworkClient::receiveMove() {
-    char buffer[1024];
+
+void NetworkClient::receiveGameStartNotification(std::function<void()> gameStartCallback) {
+    char buffer[512];
     int bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
-    if (bytesReceived > 0) {
-        return std::string(buffer, bytesReceived);
+
+    // Vérifier si la réception a échoué
+    if (bytesReceived == SOCKET_ERROR) {
+        int errorCode = WSAGetLastError();
+        std::cerr << "Erreur de réception du message. Code d'erreur : " << errorCode << std::endl;
+        return;
     }
-    return "";
+
+    // Si des données ont été reçues
+    if (bytesReceived > 0) {
+        buffer[bytesReceived] = '\0';  // Ajouter le caractère de fin de chaîne
+        std::cout << "Notification de démarrage du jeu : " << buffer << std::endl;
+
+        // Appeler le callback pour démarrer le jeu
+        gameStartCallback();
+    }
+    else {
+        std::cerr << "Aucune donnée reçue ou connexion fermée." << std::endl;
+    }
 }
 
-void NetworkClient::receiveLoop() {
-    while (true) {
-        std::string move = receiveMove();
-        if (!move.empty()) {
-            std::cout << "Received from server: " << move << std::endl;
-        }
-    }
-}
+

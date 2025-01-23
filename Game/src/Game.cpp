@@ -2,8 +2,7 @@
 #include "HumainPlayer.h"
 #include "AiPlayer.h"
 #include <iostream>
-#include <thread>  
-
+#include <thread>
 
 Game::Game() :
     window(800, 600, "Game"),
@@ -36,20 +35,21 @@ void Game::run()
         event.pollEvent(window.getRenderWindow());
 
         if (gameState == GameState::Menu) {
-            handleMenu();
-        } else if (gameState == GameState::Playing) {
+            handleMenu();  // Afficher le menu si on est en mode Menu
+        }
+        else if (gameState == GameState::Playing) {
             turnPlayed = false;
             processTurn();
 
+            // Afficher la grille de jeu
             board.draw(window.getRenderWindow(), player1->getSymbol(), player2->getSymbol());
         }
 
-        window.display();
+        window.display();  // Afficher la fenêtre mise à jour
     }
 }
 
-void Game::handleMenu()
-{
+void Game::handleMenu() {
     std::thread serverThread;
 
     while (event.hasEvent()) {
@@ -63,26 +63,37 @@ void Game::handleMenu()
             switch (mode) {
             case 1: // Créer une partie (Serveur)
                 std::cout << "Starting server..." << std::endl;
+
+                // Lancer le serveur dans un thread
                 serverThread = std::thread(&NetworkServer::startServer, &networkServer, 12345);
-                serverThread.detach(); 
-                std::cout << "Server started in the background." << std::endl;
+                serverThread.join();  // Attendre que le serveur soit complètement démarré
+
+                // Le client se connecte à lui-même après que le serveur soit prêt
+                networkClient.connectToServer("127.0.0.1", 12345);
+                std::cout << "Host connected to self as client..." << std::endl;
+
+                // Attendre que la connexion soit établie avant de démarrer le jeu
+                networkServer.notifyGameStart();
                 break;
             case 2: // Rejoindre une partie (Client)
                 std::cout << "Joining game..." << std::endl;
-                networkClient.connectToServer("127.0.0.1", 12345);
+                networkClient.connectToServer("127.0.0.1", 12345); // Se connecter à l'hôte
+                networkClient.receiveGameStartNotification([this]() { startGame(); });
+                gameState = GameState::Playing;
                 break;
             case 3: // Jouer en solo (IA)
-                std::cout << "Playing solo with ia mode..." << std::endl;
+                std::cout << "Playing solo with IA mode..." << std::endl;
                 player1 = std::make_unique<HumainPlayer>('X', "Player 1");
                 player2 = std::make_unique<AiPlayer>('O', "AI Player");
                 dynamic_cast<AiPlayer*>(player2.get())->setOpponentSymbol(player1->getSymbol());
                 gameState = GameState::Playing;
                 break;
-			case 4: // Jouer en solo friends
+            case 4: // Jouer en solo amis
                 std::cout << "Playing solo with friends mode..." << std::endl;
                 player1 = std::make_unique<HumainPlayer>('X', "Player 1");
                 player2 = std::make_unique<HumainPlayer>('O', "AI Player");
                 gameState = GameState::Playing;
+                break;
             default:
                 break;
             }
@@ -92,6 +103,33 @@ void Game::handleMenu()
     menu.draw(window.getRenderWindow());
 }
 
+void Game::startServerAndClient() {
+    // Démarrer le serveur dans un thread
+    std::thread serverThread(&NetworkServer::startServer, &networkServer, 12345);
+    serverThread.join();
+    std::cout << "Server started in the background." << std::endl;
+
+    // Se connecter en tant que client à l'hôte (se connecter à soi-même)
+    networkClient.connectToServer("127.0.0.1", 12345);
+    std::cout << "Connected as client to the host..." << std::endl;
+
+    // Attendre que le deuxième joueur se connecte et démarrer le jeu
+    // Une fois le deuxième joueur connecté, le serveur doit envoyer un message pour démarrer le jeu.
+    gameState = GameState::Playing;
+}
+
+void Game::startClient() {
+    // Se connecter au serveur (l'hôte)
+    networkClient.connectToServer("127.0.0.1", 12345);
+
+    // Une fois connecté, attendre le démarrage de la partie
+    // Une fois le serveur prêt, le jeu commence
+    gameState = GameState::Playing;
+}
+
+void Game::startGame() {
+    gameState = GameState::Playing; 
+}
 
 void Game::processTurn()
 {
@@ -124,7 +162,6 @@ void Game::processTurn()
         setTour();
     }
 }
-
 
 bool Game::checkGameEnd(Player* currentPlayer)
 {
