@@ -14,7 +14,6 @@ public:
 	~Text();
 
 	void setText(const std::string& str);
-	const sf::Text& getText() const;
 	void setCharacterSize(unsigned int size);
 	void setColor(const sf::Color& color);
 	void setPosition(float x, float y);

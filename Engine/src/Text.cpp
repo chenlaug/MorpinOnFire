@@ -21,11 +21,6 @@ void Text::setText(const std::string& str)
 	text.setString(str);
 }
 
-const sf::Text& Text::getText() const
-{
-	return text;
-}
-
 void Text::setCharacterSize(unsigned int size)
 {
 	text.setCharacterSize(size);

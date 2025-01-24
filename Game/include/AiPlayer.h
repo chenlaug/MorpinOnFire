@@ -15,7 +15,7 @@ private:
 
     int evaluate(const Board& board, char aiSymbol, char humanSymbol) const;
     bool isMovesLeft(const Board& board) const;
-    int minimax(Board& board, int depth, bool isMax, char aiSymbol, char humanSymbol, int alpha, int beta);
+    int minimax(Board& board, int depth, bool isMax, char aiSymbol, char humanSymbol, int alpha, int beta); // Copie ici
     Move findBestMove(Board board, char aiSymbol, char humanSymbol);
 
 public:
