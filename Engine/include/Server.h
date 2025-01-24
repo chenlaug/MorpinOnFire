@@ -1,6 +1,3 @@
-#ifndef NETWORKSERVER_H
-#define NETWORKSERVER_H
-
 #include <winsock2.h>
 #include <string>
 #include <iostream>
@@ -10,17 +7,16 @@ public:
     NetworkServer();
     ~NetworkServer();
 
-    void startServer(int port);
-    void acceptClient(int playerNumber);
-    void notifyGameStart();
-    bool areClientsConnected() const;
+	void startServer(int port);
+	void notifyGameStart();
+	bool areClientsConnected() const;
+	void acceptClient(int playerNumber);
 
 private:
     SOCKET serverSocket;
-    SOCKET clientSocket1;
+    SOCKET clientSocket1; 
     SOCKET clientSocket2;
     sockaddr_in serverAddr;
-    bool clientsConnected;
+    bool clientsConnected; 
 };
 
-#endif // NETWORKSERVER_H

@@ -1,9 +1,12 @@
 #include "Server.h"
 #include <iostream>
 #include <winsock2.h>
+#include <mutex>
+
+std::mutex clientMutex;
 
 NetworkServer::NetworkServer() : clientSocket1(0), clientSocket2(0), clientsConnected(false) {
-    // Initialisation de WinSock
+    // Initialiser WinSock
     WSAData wsaData;
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
         std::cerr << "Erreur de l'initialisation de WinSock" << std::endl;
@@ -13,14 +16,10 @@ NetworkServer::NetworkServer() : clientSocket1(0), clientSocket2(0), clientsConn
     // Créer le socket pour le serveur
     serverSocket = socket(AF_INET, SOCK_STREAM, 0);
     if (serverSocket == INVALID_SOCKET) {
-        std::cerr << "Erreur de création du socket serveur. Code d'erreur : " << WSAGetLastError() << std::endl;
+        std::cerr << "Erreur de création du socket serveur" << std::endl;
         exit(1);
     }
-    else {
-        std::cout << "Socket serveur créé avec succès." << std::endl;
-    }
 }
-
 
 NetworkServer::~NetworkServer() {
     if (clientSocket1) {
@@ -35,32 +34,26 @@ NetworkServer::~NetworkServer() {
 
 void NetworkServer::startServer(int port) {
     serverAddr.sin_family = AF_INET;
-    serverAddr.sin_addr.s_addr = INADDR_ANY;  // Adresse IP du serveur (0.0.0.0 = toutes les adresses)
-    serverAddr.sin_port = htons(port);  // Convertir le port en format réseau
+    serverAddr.sin_addr.s_addr = INADDR_ANY;  // Adresse IP du serveur
+    serverAddr.sin_port = htons(port);  // Port de connexion
 
-    // Lier le socket à l'adresse
+    // Lier le socket au port
     if (bind(serverSocket, (sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) {
-        std::cerr << "Erreur de liaison du socket. Code d'erreur : " << WSAGetLastError() << std::endl;
+        std::cerr << "Erreur de liaison du socket" << std::endl;
         return;
     }
-    else {
-        std::cout << "Le socket a été lié avec succès." << std::endl;
-    }
 
-    // Commencer à écouter sur le socket
+    std::cout << "Le serveur écoute les connexions entrantes..." << std::endl;
+
+    // Lancer l'écoute sur le serveur
     if (listen(serverSocket, 2) == SOCKET_ERROR) {
-        std::cerr << "Erreur d'écoute sur le socket. Code d'erreur : " << WSAGetLastError() << std::endl;
+        std::cerr << "Erreur d'écoute sur le socket" << std::endl;
         return;
     }
-    else {
-        std::cout << "Le serveur écoute les connexions entrantes." << std::endl;
-    }
 
-    // Accepter la connexion du premier client
-    acceptClient(1);
-
-    // Accepter la connexion du deuxième client
-    acceptClient(2);
+    // Attendre les connexions des clients
+    acceptClient(1);  // Accepter le premier client
+    acceptClient(2);  // Accepter le deuxième client
 
     // Une fois les deux clients connectés, notifier le démarrage du jeu
     if (areClientsConnected()) {
@@ -68,20 +61,34 @@ void NetworkServer::startServer(int port) {
     }
 }
 
+void NetworkServer::notifyGameStart() {
+    if (clientSocket1 == INVALID_SOCKET || clientSocket2 == INVALID_SOCKET) {
+        std::cerr << "Erreur : un ou plusieurs sockets de client ne sont pas valides." << std::endl;
+        return;
+    }
+
+    const char* gameStartMessage = "Le jeu commence !";
+    send(clientSocket1, gameStartMessage, strlen(gameStartMessage), 0);
+    send(clientSocket2, gameStartMessage, strlen(gameStartMessage), 0);
+    std::cout << "Notification envoyée aux clients : Le jeu commence !" << std::endl;
+}
+
+bool NetworkServer::areClientsConnected() const {
+    return (clientSocket1 != 0 && clientSocket2 != 0);
+}
+
 void NetworkServer::acceptClient(int playerNumber) {
     sockaddr_in clientAddr;
     int clientSize = sizeof(clientAddr);
 
+    // Accepter la connexion d'un client
     SOCKET clientSocket = accept(serverSocket, (sockaddr*)&clientAddr, &clientSize);
     if (clientSocket == INVALID_SOCKET) {
         std::cerr << "Erreur d'acceptation de la connexion. Code d'erreur : " << WSAGetLastError() << std::endl;
         return;
     }
 
-    // Afficher des informations sur l'acceptation
-    std::cout << "Un client s'est connecté." << std::endl;
-
-    // Enregistrer les clients
+    // Enregistrer le premier ou le deuxième client
     if (playerNumber == 1) {
         clientSocket1 = clientSocket;
         std::cout << "Premier joueur connecté." << std::endl;
@@ -94,30 +101,4 @@ void NetworkServer::acceptClient(int playerNumber) {
     clientsConnected = (clientSocket1 != 0 && clientSocket2 != 0);
 }
 
-void NetworkServer::notifyGameStart() {
-    // Vérifiez que les deux clients sont connectés avant d'envoyer la notification
-    std::cerr << "Vérification de la connexion des clients..." << std::endl;
 
-    if (areClientsConnected()) {
-        std::cerr << "Les deux clients sont connectés. Envoi de la notification..." << std::endl;
-
-        const char* gameStartMessage = "Le jeu commence !";
-
-        // Vérifiez que les sockets sont valides avant de tenter d'envoyer des données
-        if (clientSocket1 != INVALID_SOCKET && clientSocket2 != INVALID_SOCKET) {
-            send(clientSocket1, gameStartMessage, strlen(gameStartMessage), 0);
-            send(clientSocket2, gameStartMessage, strlen(gameStartMessage), 0);
-            std::cout << "Notification envoyée aux clients : Le jeu commence !" << std::endl;
-        }
-        else {
-            std::cerr << "Erreur: Un ou les deux sockets des clients sont invalides !" << std::endl;
-        }
-    }
-    else {
-        std::cerr << "Les clients ne sont pas tous connectés. Impossible d'envoyer la notification de démarrage." << std::endl;
-    }
-}
-
-bool NetworkServer::areClientsConnected() const {
-    return (clientSocket1 != 0 && clientSocket2 != 0);
-}

@@ -11,7 +11,7 @@
 
 enum class GameState {
     Menu,
-    Playing
+    Playing 
 };
 
 class Game
