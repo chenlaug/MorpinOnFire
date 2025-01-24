@@ -146,8 +146,7 @@ void Game::startGame() {
     gameState = GameState::Playing;
 }
 
-void Game::processTurn()
-{
+void Game::processTurn() {
     Player* currentPlayer = (getTour() % 2 == 0) ? player1.get() : player2.get();
 
     if (dynamic_cast<HumainPlayer*>(currentPlayer) && !turnPlayed) {
@@ -158,10 +157,17 @@ void Game::processTurn()
                 window.close();
             }
             else if (currentEvent.type == sf::Event::MouseButtonPressed) {
-                if (board.handleClick(static_cast<float>(currentEvent.mouseButton.x),
-                    static_cast<float>(currentEvent.mouseButton.y),
-                    currentPlayer->getSymbol())) {
+                // Récupérer les coordonnées du clic et envoyer au serveur
+                float x = static_cast<float>(currentEvent.mouseButton.x);
+                float y = static_cast<float>(currentEvent.mouseButton.y);
+
+                // Handle le clic et envoyer la position du clic au serveur
+                if (board.handleClick(x, y, currentPlayer->getSymbol())) {
+                    // Informer le serveur de l'action effectuée
+                    networkClient.sendPlayerAction(x, y, currentPlayer->getSymbol());
                     turnPlayed = true;
+
+                    board.draw(window.getRenderWindow(), player1->getSymbol(), player2->getSymbol());  // Redessiner la grille
 
                     if (checkGameEnd(currentPlayer)) return;
                     setTour();
@@ -170,13 +176,18 @@ void Game::processTurn()
         }
     }
     else if (dynamic_cast<AiPlayer*>(currentPlayer) && !turnPlayed) {
+        // Logique IA
         currentPlayer->play(window.getRenderWindow(), board, sf::Event());
         turnPlayed = true;
+
+        // Envoyer "Tour terminé" au serveur pour l'IA
+        networkClient.sendTurnComplete();
 
         if (checkGameEnd(currentPlayer)) return;
         setTour();
     }
 }
+
 
 bool Game::checkGameEnd(Player* currentPlayer)
 {

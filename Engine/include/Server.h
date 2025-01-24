@@ -11,6 +11,12 @@ public:
 	void notifyGameStart();
 	bool areClientsConnected() const;
 	void acceptClient(int playerNumber);
+    void notifyTurnToClient(int playerNumber);
+    void processTurn();
+
+    void notifyClientsOfPlayerAction(float x, float y, char symbol);
+
+    void handleClientMessage(SOCKET clientSocket);
 
 private:
     SOCKET serverSocket;

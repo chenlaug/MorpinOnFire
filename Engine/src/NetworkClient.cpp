@@ -1,4 +1,6 @@
 #include "NetworkClient.h"
+
+#include <string>
 #include <ws2tcpip.h>
 
 NetworkClient::NetworkClient() {
@@ -64,5 +66,43 @@ void NetworkClient::receiveGameStartNotification(std::function<void()> gameStart
 	else {
 		std::cerr << "Aucun message reçu." << std::endl;
 	}
+}
+
+void NetworkClient::receiveTurnNotification(std::function<void()> turnCallback) {
+	if (clientSocket == INVALID_SOCKET) {
+		std::cerr << "Erreur : le socket client est invalide." << std::endl;
+		return;
+	}
+
+	char buffer[512];
+	int bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
+
+	if (bytesReceived > 0) {
+		buffer[bytesReceived] = '\0';  // Ajouter le caractère de fin de chaîne
+		std::cout << "Notification de tour : " << buffer << std::endl;
+
+		if (strcmp(buffer, "C'est votre tour, Joueur 1 !") == 0 || strcmp(buffer, "C'est votre tour, Joueur 2 !") == 0) {
+			// Appeler le callback pour signaler que c'est le tour du joueur
+			turnCallback();  // Cette fonction sera appelée pour indiquer que le joueur peut jouer
+
+			// Une fois le joueur a joué, envoyer un message au serveur pour signaler que le tour est terminé
+			send(clientSocket, "Tour terminé", strlen("Tour terminé"), 0);
+		}
+	}
+}
+
+void NetworkClient::sendTurnComplete() {
+	if (clientSocket != INVALID_SOCKET) {
+		const char* message = "Tour terminé";
+		send(clientSocket, message, strlen(message), 0);
+	}
+}
+
+void NetworkClient::sendPlayerAction(float x, float y, char symbol) {
+	// Créer un message à envoyer (vous pouvez sérialiser les données si nécessaire)
+	std::string message = std::to_string(x) + " " + std::to_string(y) + " " + symbol;
+
+	// Envoyer le message au serveur
+	send(clientSocket, message.c_str(), message.size(), 0);
 }
 
